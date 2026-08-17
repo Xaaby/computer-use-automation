@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Not found — Mock Core Admin{% endblock %}
+{% block content %}
+<div class="panel">
+  <h1>No member found</h1>
+  <p>The requested member does not exist.</p>
+  <p><a href="{{ url_for('search') }}">Back to search</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+# Environment - NEVER commit this
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Evidence (runtime generated - too large for git, commit selectively)
+evidence/runs/*/
+!evidence/runs/.gitkeep
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+*.pem
+*.key
+secrets.json

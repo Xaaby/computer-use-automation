@@ -1,0 +1,91 @@
+{
+  "members": [
+    {
+      "id": "10001",
+      "name": "James Harrington",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10001", "balance": "4821.50", "currency": "USD"},
+        {"type": "Checking", "number": "CHK-10001", "balance": "1203.77", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10002",
+      "name": "Maria Delgado",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10002", "balance": "12450.00", "currency": "USD"},
+        {"type": "Checking", "number": "CHK-10002", "balance": "890.23", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10003",
+      "name": "Robert Chen",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10003", "balance": "750.00", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10004",
+      "name": "Patricia Wallace",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10004", "balance": "33100.88", "currency": "USD"},
+        {"type": "Checking", "number": "CHK-10004", "balance": "5240.15", "currency": "USD"},
+        {"type": "Money Market", "number": "MM-10004", "balance": "50000.00", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10005",
+      "name": "David Okafor",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10005", "balance": "2900.00", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10006",
+      "name": "Susan Takahashi",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10006", "balance": "7640.30", "currency": "USD"},
+        {"type": "Checking", "number": "CHK-10006", "balance": "310.00", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10007",
+      "name": "Michael Torres",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10007", "balance": "1100.00", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10008",
+      "name": "Linda Petrov",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10008", "balance": "9910.45", "currency": "USD"},
+        {"type": "Checking", "number": "CHK-10008", "balance": "2200.00", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10009",
+      "name": "Thomas Nguyen",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10009", "balance": "450.00", "currency": "USD"}
+      ]
+    },
+    {
+      "id": "10010",
+      "name": "Angela Murphy",
+      "status": "active",
+      "accounts": [
+        {"type": "Savings", "number": "SAV-10010", "balance": "18750.00", "currency": "USD"},
+        {"type": "Checking", "number": "CHK-10010", "balance": "4500.00", "currency": "USD"}
+      ]
+    }
+  ]
+}

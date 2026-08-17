@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }} — Mock Core Admin{% endblock %}
+{% block content %}
+<div class="panel">
+  <h1>{{ member.name }}</h1>
+  <p>Member {{ member.id }} — {{ member.status }}</p>
+  <iframe title="Accounts" src="{{ url_for('accounts_frame', member_id=member.id) }}"></iframe>
+  <p>
+    <a href="{{ url_for('transfer', member_id=member.id) }}">Transfer</a>
+  </p>
+</div>
+{% endblock %}

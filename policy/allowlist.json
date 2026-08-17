@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "allowed_origins": [
+    "http://localhost:5000"
+  ],
+  "allowed_route_patterns": [
+    "http://localhost:5000/members/**",
+    "http://localhost:5000/frames/**",
+    "http://localhost:5000/login",
+    "http://localhost:5000/logout",
+    "http://localhost:5000/transfers/confirm"
+  ],
+  "allowed_action_types": [
+    "fill",
+    "click",
+    "press",
+    "navigate",
+    "read",
+    "observe_screenshot",
+    "assert",
+    "wait"
+  ],
+  "blocked_routes": [
+    "http://localhost:5000/admin/**",
+    "http://localhost:5000/simulate/**"
+  ],
+  "risky_action_routes": [
+    "http://localhost:5000/transfers/**"
+  ],
+  "pii_field_labels": [
+    "password",
+    "ssn",
+    "social security",
+    "account number",
+    "routing number",
+    "date of birth",
+    "tax id"
+  ]
+}

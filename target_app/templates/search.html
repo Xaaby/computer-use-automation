@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Member Search — Mock Core Admin{% endblock %}
+{% block content %}
+<div class="panel">
+  <h1>Member Search</h1>
+  {% if error %}
+  <p class="flash">{{ error }}</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('search') }}">
+    <label for="member_id">Member ID</label>
+    <input id="member_id" type="text" name="member_id" aria-label="Member ID" placeholder="Enter member ID">
+    <div>
+      <button type="submit">Search</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Accounts</title>
+  <style>
+    body { margin: 8px; font-family: Tahoma, Verdana, sans-serif; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #999; padding: 4px 8px; text-align: left; }
+  </style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Number</th>
+        <th>Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for account in member.accounts %}
+      <tr class="row-data">
+        <td class="col1">{{ account.type }}</td>
+        <td class="col2">{{ account.number }}</td>
+        <td>{{ account.balance }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

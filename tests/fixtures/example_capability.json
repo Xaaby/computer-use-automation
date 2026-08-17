@@ -1,0 +1,228 @@
+{
+  "schema_version": "1.0",
+  "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "name": "member.lookup_savings_balance",
+  "version": "1.0.0",
+  "description": "Look up a member by ID and read the savings account balance.",
+  "created_at": "2026-08-16T00:00:00Z",
+  "target": {
+    "surface_type": "playwright_web",
+    "app_family": "mock_core_admin",
+    "app_version": "1.0",
+    "entry_point": "http://localhost:5000/members/search"
+  },
+  "policy": {
+    "risk_class": "read_only",
+    "allowed_actions": ["navigate", "fill", "click", "read"],
+    "allowed_routes": [
+      "http://localhost:5000/members/**",
+      "http://localhost:5000/frames/**"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "member_id",
+      "type": "string",
+      "required": true,
+      "pattern": "^[0-9]+$",
+      "description": "Member identifier to look up"
+    }
+  ],
+  "steps": [
+    {
+      "id": "step_1",
+      "description": "Navigate to member search",
+      "action": "navigate",
+      "url": "http://localhost:5000/members/search",
+      "risk_level": "safe",
+      "preconditions": [],
+      "postconditions": [
+        {"type": "route_matches", "pattern": "*/members/search*"}
+      ]
+    },
+    {
+      "id": "step_2",
+      "description": "Fill member ID",
+      "action": "fill",
+      "value": "$inputs.member_id",
+      "risk_level": "safe",
+      "target": {
+        "frame_path": null,
+        "expected_matches": 1,
+        "candidates": [
+          {
+            "priority": 1,
+            "strategy": "role",
+            "role": "textbox",
+            "name": "Member ID",
+            "exact": true
+          },
+          {
+            "priority": 2,
+            "strategy": "label",
+            "text": "Member ID",
+            "exact": true
+          }
+        ]
+      },
+      "preconditions": [
+        {"type": "route_matches", "pattern": "*/members/search*"}
+      ],
+      "postconditions": []
+    },
+    {
+      "id": "step_3",
+      "description": "Click Search",
+      "action": "click",
+      "risk_level": "safe",
+      "target": {
+        "frame_path": null,
+        "expected_matches": 1,
+        "candidates": [
+          {
+            "priority": 1,
+            "strategy": "text",
+            "text": "Search",
+            "exact": true
+          }
+        ]
+      },
+      "preconditions": [
+        {"type": "route_matches", "pattern": "*/members/search*"}
+      ],
+      "postconditions": []
+    },
+    {
+      "id": "step_4",
+      "description": "Read savings balance from accounts iframe",
+      "action": "read",
+      "output_name": "savings_balance",
+      "risk_level": "safe",
+      "target": {
+        "frame_path": "iframe[title=\"Accounts\"]",
+        "expected_matches": 1,
+        "candidates": [
+          {
+            "priority": 1,
+            "strategy": "role",
+            "role": "cell",
+            "name": "4821.50",
+            "exact": true
+          }
+        ]
+      },
+      "preconditions": [
+        {"type": "route_matches", "pattern": "*/members/*"}
+      ],
+      "postconditions": []
+    }
+  ],
+  "outputs": [
+    {
+      "name": "savings_balance",
+      "type": "string",
+      "description": "Savings account balance for the member",
+      "extract": {
+        "frame_path": "iframe[title=\"Accounts\"]",
+        "strategy": "role",
+        "role": "cell",
+        "method": "text_content"
+      }
+    }
+  ],
+  "success_condition": {
+    "checkpoint_id": "at_members_detail",
+    "description": "Look up a member by ID and read the savings account balance."
+  },
+  "checkpoints": {
+    "at_members_search": {
+      "all": [
+        {"type": "route_matches", "pattern": "*/members/search*"}
+      ]
+    },
+    "at_members_detail": {
+      "all": [
+        {"type": "route_matches", "pattern": "*/members/*"}
+      ]
+    }
+  },
+  "business_outcomes": [
+    {
+      "code": "MEMBER_NOT_FOUND",
+      "description": "Search completed but no member with this ID exists",
+      "recognizer": {
+        "all": [
+          {"type": "text_visible", "text": "No member found"},
+          {"type": "route_matches", "pattern": "*/members/search*"}
+        ]
+      }
+    }
+  ],
+  "error_taxonomy": {
+    "recoverable": [
+      {
+        "code": "SESSION_EXPIRED",
+        "recognizer": {
+          "any": [
+            {"type": "route_matches", "pattern": "*/login*"},
+            {"type": "text_visible", "text": "session has expired"}
+          ]
+        },
+        "recovery": "re_authenticate",
+        "max_retries": 1,
+        "backoff_ms": 2000
+      },
+      {
+        "code": "TRANSIENT_LOAD",
+        "recognizer": {
+          "all": [
+            {"type": "timeout", "after_ms": 5000}
+          ]
+        },
+        "recovery": "wait_and_retry",
+        "max_retries": 3,
+        "backoff_ms": 2000
+      }
+    ],
+    "hard_failures": [
+      {
+        "code": "PERMISSION_DENIED",
+        "recognizer": {
+          "all": [
+            {"type": "http_status", "code": 403}
+          ]
+        }
+      },
+      {
+        "code": "APP_ERROR",
+        "recognizer": {
+          "all": [
+            {"type": "text_visible", "text": "Application Error"}
+          ]
+        }
+      },
+      {
+        "code": "AMBIGUOUS_LOCATOR",
+        "recognizer": {
+          "all": [
+            {"type": "locator_matches_multiple"}
+          ]
+        }
+      },
+      {
+        "code": "LOCATOR_NOT_FOUND",
+        "recognizer": {
+          "all": [
+            {"type": "all_candidates_failed"}
+          ]
+        }
+      }
+    ]
+  },
+  "provenance": {
+    "discovery_run_id": "fixture-run-001",
+    "discovery_model": "claude-sonnet-4-6-bedrock",
+    "compiler_version": "1.0.0",
+    "status": "draft"
+  }
+}

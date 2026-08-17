@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Mock Core Admin{% endblock %}</title>
+  <style>
+    body { margin: 0; font-family: Tahoma, Verdana, sans-serif; background: #ece9d8; color: #111; }
+    header { background: #003366; color: #fff; padding: 10px 16px; }
+    header a { color: #fff; }
+    nav { margin-top: 6px; }
+    nav a { margin-right: 12px; }
+    main { padding: 16px; }
+    .panel { background: #fff; border: 1px solid #999; padding: 16px; max-width: 720px; }
+    label { display: block; margin: 8px 0 4px; }
+    input, select { font-size: 14px; padding: 4px; }
+    button { font-size: 14px; padding: 4px 12px; margin-top: 8px; }
+    .flash { margin: 8px 0; padding: 8px; border: 1px solid #666; background: #fff8dc; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #999; padding: 4px 8px; text-align: left; }
+    iframe { width: 100%; height: 220px; border: 1px solid #999; background: #fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Mock Core Admin</strong>
+    <nav>
+      <a href="{{ url_for('search') }}">Member Search</a>
+      {% if session.get("user") %}
+      <a href="{{ url_for('logout') }}">Log out</a>
+      {% else %}
+      <a href="{{ url_for('login') }}">Log in</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

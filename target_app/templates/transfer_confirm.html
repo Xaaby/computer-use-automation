@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Confirm Transfer — Mock Core Admin{% endblock %}
+{% block content %}
+<div class="panel">
+  {% if committed %}
+  <h1>Transfer complete</h1>
+  <p>Transferred {{ pending.amount }} from {{ pending.from_account }} to {{ pending.to_account }}.</p>
+  <p><a href="{{ url_for('member_detail', member_id=member.id) }}">Back to member</a></p>
+  {% else %}
+  <h1>Confirm Transfer</h1>
+  <p>Member: {{ member.name }} ({{ member.id }})</p>
+  <p>From Account: {{ pending.from_account }}</p>
+  <p>To Account: {{ pending.to_account }}</p>
+  <p>Amount: {{ pending.amount }}</p>
+  <form method="post" action="{{ url_for('transfers_confirm') }}">
+    <button type="submit">Confirm Transfer</button>
+  </form>
+  <p><a href="{{ url_for('transfer', member_id=member.id) }}">Cancel</a></p>
+  {% endif %}
+</div>
+{% endblock %}

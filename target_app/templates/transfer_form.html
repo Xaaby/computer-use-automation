@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Transfer — Mock Core Admin{% endblock %}
+{% block content %}
+<div class="panel">
+  <h1>Transfer funds</h1>
+  <p>{{ member.name }} ({{ member.id }})</p>
+  {% if error %}
+  <p class="flash">{{ error }}</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('transfer', member_id=member.id) }}">
+    <label for="from_account">From Account</label>
+    <select id="from_account" name="from_account" aria-label="From Account">
+      {% for account in member.accounts %}
+      <option value="{{ account.number }}">{{ account.type }} — {{ account.number }} ({{ account.balance }})</option>
+      {% endfor %}
+    </select>
+    <label for="to_account">To Account</label>
+    <input id="to_account" type="text" name="to_account" aria-label="To Account">
+    <label for="amount">Amount</label>
+    <input id="amount" type="text" name="amount" aria-label="Amount">
+    <div>
+      <button type="submit">Continue</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
