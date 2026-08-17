@@ -1,0 +1,11 @@
+{
+  "run_id": "b3a83a44-c4c0-4926-a96f-171b6d4d1f35",
+  "capability_id": "member.lookup_savings_balance",
+  "status": "business_outcome",
+  "business_outcome": {
+    "code": "MEMBER_NOT_FOUND",
+    "description": "Search completed but no member with this ID exists",
+    "at_step": "step_3"
+  },
+  "evidence_path": "evidence\\runs\\b3a83a44-c4c0-4926-a96f-171b6d4d1f35"
+}

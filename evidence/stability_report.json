@@ -1,0 +1,141 @@
+{
+  "capability_id": "member.lookup_savings_balance",
+  "n_runs": 20,
+  "params": {
+    "member_id": "10001"
+  },
+  "success_count": 20,
+  "business_outcome_count": 0,
+  "failure_count": 0,
+  "indeterminate_count": 0,
+  "durations_ms": [
+    3144,
+    2383,
+    2774,
+    3175,
+    2603,
+    3364,
+    2476,
+    2858,
+    2272,
+    3192,
+    2354,
+    2521,
+    2289,
+    3213,
+    2685,
+    2506,
+    3050,
+    2310,
+    2320,
+    3043
+  ],
+  "failures_by_step": {},
+  "run_details": [
+    {
+      "run": 1,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 3144
+    },
+    {
+      "run": 2,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2383
+    },
+    {
+      "run": 3,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2774
+    },
+    {
+      "run": 4,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 3175
+    },
+    {
+      "run": 5,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2603
+    },
+    {
+      "run": 6,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 3364
+    },
+    {
+      "run": 7,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2476
+    },
+    {
+      "run": 8,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2858
+    },
+    {
+      "run": 9,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2272
+    },
+    {
+      "run": 10,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 3192
+    },
+    {
+      "run": 11,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2354
+    },
+    {
+      "run": 12,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2521
+    },
+    {
+      "run": 13,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2289
+    },
+    {
+      "run": 14,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 3213
+    },
+    {
+      "run": 15,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2685
+    },
+    {
+      "run": 16,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2506
+    },
+    {
+      "run": 17,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 3050
+    },
+    {
+      "run": 18,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2310
+    },
+    {
+      "run": 19,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 2320
+    },
+    {
+      "run": 20,
+      "outcome": "ReplaySuccess",
+      "duration_ms": 3043
+    }
+  ],
+  "p50_ms": 2685,
+  "p95_ms": 3364,
+  "mean_ms": 2726,
+  "success_rate": 1.0,
+  "verdict": "STABLE"
+}

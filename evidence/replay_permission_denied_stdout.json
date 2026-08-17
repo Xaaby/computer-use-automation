@@ -1,0 +1,16 @@
+{
+  "run_id": "8653b384-cd19-4064-9c02-e082c82fce1f",
+  "capability_id": "member.lookup_savings_balance",
+  "status": "hard_failure",
+  "failure": {
+    "code": "PERMISSION_DENIED",
+    "step_id": "step_3",
+    "expected": "permitted action",
+    "observed": "PERMISSION_DENIED",
+    "evidence": {
+      "screenshot": "evidence\\runs\\8653b384-cd19-4064-9c02-e082c82fce1f\\step_3_permission_denied.png",
+      "aria_snapshot": "evidence\\runs\\8653b384-cd19-4064-9c02-e082c82fce1f\\step_3_permission_denied_aria.yaml",
+      "trace": "evidence\\runs\\8653b384-cd19-4064-9c02-e082c82fce1f\\step_3_permission_denied_trace.zip"
+    }
+  }
+}
