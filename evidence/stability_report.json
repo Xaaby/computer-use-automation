@@ -9,133 +9,133 @@
   "failure_count": 0,
   "indeterminate_count": 0,
   "durations_ms": [
-    3144,
-    2383,
-    2774,
-    3175,
-    2603,
-    3364,
-    2476,
-    2858,
-    2272,
-    3192,
-    2354,
-    2521,
-    2289,
-    3213,
-    2685,
-    2506,
-    3050,
-    2310,
-    2320,
-    3043
+    2991,
+    2335,
+    2838,
+    3000,
+    3396,
+    2575,
+    3496,
+    4057,
+    3141,
+    2269,
+    3390,
+    2337,
+    2330,
+    3310,
+    2725,
+    3538,
+    3037,
+    4587,
+    3819,
+    3693
   ],
   "failures_by_step": {},
   "run_details": [
     {
       "run": 1,
       "outcome": "ReplaySuccess",
-      "duration_ms": 3144
+      "duration_ms": 2991
     },
     {
       "run": 2,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2383
+      "duration_ms": 2335
     },
     {
       "run": 3,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2774
+      "duration_ms": 2838
     },
     {
       "run": 4,
       "outcome": "ReplaySuccess",
-      "duration_ms": 3175
+      "duration_ms": 3000
     },
     {
       "run": 5,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2603
+      "duration_ms": 3396
     },
     {
       "run": 6,
       "outcome": "ReplaySuccess",
-      "duration_ms": 3364
+      "duration_ms": 2575
     },
     {
       "run": 7,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2476
+      "duration_ms": 3496
     },
     {
       "run": 8,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2858
+      "duration_ms": 4057
     },
     {
       "run": 9,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2272
+      "duration_ms": 3141
     },
     {
       "run": 10,
       "outcome": "ReplaySuccess",
-      "duration_ms": 3192
+      "duration_ms": 2269
     },
     {
       "run": 11,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2354
+      "duration_ms": 3390
     },
     {
       "run": 12,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2521
+      "duration_ms": 2337
     },
     {
       "run": 13,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2289
+      "duration_ms": 2330
     },
     {
       "run": 14,
       "outcome": "ReplaySuccess",
-      "duration_ms": 3213
+      "duration_ms": 3310
     },
     {
       "run": 15,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2685
+      "duration_ms": 2725
     },
     {
       "run": 16,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2506
+      "duration_ms": 3538
     },
     {
       "run": 17,
       "outcome": "ReplaySuccess",
-      "duration_ms": 3050
+      "duration_ms": 3037
     },
     {
       "run": 18,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2310
+      "duration_ms": 4587
     },
     {
       "run": 19,
       "outcome": "ReplaySuccess",
-      "duration_ms": 2320
+      "duration_ms": 3819
     },
     {
       "run": 20,
       "outcome": "ReplaySuccess",
-      "duration_ms": 3043
+      "duration_ms": 3693
     }
   ],
-  "p50_ms": 2685,
-  "p95_ms": 3364,
-  "mean_ms": 2726,
+  "p50_ms": 3141,
+  "p95_ms": 4587,
+  "mean_ms": 3143,
   "success_rate": 1.0,
   "verdict": "STABLE"
 }

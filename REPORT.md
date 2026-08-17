@@ -27,6 +27,8 @@ Locators are an ordered candidate list (role+name → label → text → css →
 
 We keep **schema_version** (wire format of the artifact language) separate from **capability version** (semver of this procedure). Provenance starts as `status: "draft"` until a successful replay earns trust.
 
+Capability IDs use dotted form (`member.lookup_savings_balance`) so they read as invocable methods: `capability.invoke("member.lookup_savings_balance", {member_id})`. That is the agent-facing contract, not a filename convention.
+
 Ephemeral ARIA refs (`e17`) are **never** stored. Discovery resolves them live; the compiler stores durable role/name/label candidates (and `frame_path` for iframes).
 
 ## 3. Determinism & Error Handling
@@ -46,6 +48,8 @@ Checkpoints track **state transitions** (search page → member detail), not eve
 Locator ambiguity is always `AMBIGUOUS_LOCATOR` hard failure. Guessing the wrong "Search" button is worse than stopping.
 
 **MEMBER_NOT_FOUND ID decision:** the mock app maps member IDs starting with `9` to HTTP 403 (`PERMISSION_DENIED`). Docs that used `99999` for not-found would mis-classify. We use **`88888`** for not-found and **`90001`** for permission denied.
+
+**Evals, not anecdotes.** Stretch B replays `member.lookup_savings_balance` 20 times unattended (`evals/stability_runner.py`). Measured result: 20/20 success, p50=3141ms, p95=4587ms. The ~1.4s spread is local Flask + Playwright startup variance. A p95/p50 ratio of 1.46 indicates low tail variance — no flaky locators, no race conditions. The `STABLE` verdict (≥90% success) is what gates the artifact for unattended replay.
 
 ## 4. Heterogeneity & Multi-Tenant
 

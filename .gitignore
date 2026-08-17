@@ -23,9 +23,18 @@ ENV/
 playwright-report/
 test-results/
 
-# Evidence (runtime generated - too large for git, commit selectively)
-evidence/runs/*/
+# Evidence run folders are runtime-generated. Only the four canonical
+# demo runs (discovery, success, MEMBER_NOT_FOUND, PERMISSION_DENIED) are committed.
+evidence/runs/*
 !evidence/runs/.gitkeep
+!evidence/runs/9b4334d4-b921-4824-9044-8ea863e099fe/
+!evidence/runs/9b4334d4-b921-4824-9044-8ea863e099fe/**
+!evidence/runs/fc97a898-2388-45dc-a8dd-b625e5fddf27/
+!evidence/runs/fc97a898-2388-45dc-a8dd-b625e5fddf27/**
+!evidence/runs/bf4e2e19-0225-455b-990d-d2f0ca2301b9/
+!evidence/runs/bf4e2e19-0225-455b-990d-d2f0ca2301b9/**
+!evidence/runs/7a4668b9-5cbe-45b1-ab4c-cc0f4bdd70ba/
+!evidence/runs/7a4668b9-5cbe-45b1-ab4c-cc0f4bdd70ba/**
 
 # SQLite
 *.db

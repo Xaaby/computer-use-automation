@@ -1,12 +1,10 @@
 {
-  "discovery": "evidence\\runs\\9b4334d4-b921-4824-9044-8ea863e099fe\\discovery.jsonl",
-  "recent_replays": [
-    "evidence\\runs\\43880dfc-1548-413d-98ab-dc4885515a22\\replay.jsonl",
-    "evidence\\runs\\495d3f27-5f3a-4d1e-a93e-c0e9fc2943ac\\replay.jsonl",
-    "evidence\\runs\\ddca19b9-95d3-4885-8d54-233b19cba92d\\replay.jsonl",
-    "evidence\\runs\\62438120-8e15-4346-b0ac-1d663af3a5ff\\replay.jsonl",
-    "evidence\\runs\\8027cb94-8047-4f38-b58c-8597d68712b9\\replay.jsonl"
-  ],
+  "discovery": "evidence/runs/9b4334d4-b921-4824-9044-8ea863e099fe/discovery.jsonl",
+  "replay_success": "evidence/runs/fc97a898-2388-45dc-a8dd-b625e5fddf27/replay.jsonl",
+  "replay_member_not_found": "evidence/runs/bf4e2e19-0225-455b-990d-d2f0ca2301b9/replay.jsonl",
+  "replay_permission_denied": "evidence/runs/7a4668b9-5cbe-45b1-ab4c-cc0f4bdd70ba/replay.jsonl",
+  "permission_denied_screenshot": "evidence/runs/7a4668b9-5cbe-45b1-ab4c-cc0f4bdd70ba/step_3_permission_denied.png",
   "stability_report": "evidence/stability_report.json",
-  "notes": "MEMBER_NOT_FOUND uses member_id=88888; PERMISSION_DENIED uses 90001"
+  "capability": "evidence/capabilities/member.lookup_savings_balance.capability.json",
+  "notes": "Capability ID is dotted: member.lookup_savings_balance. MEMBER_NOT_FOUND uses member_id=88888; PERMISSION_DENIED uses 90001. Stability: 20/20 STABLE, p50=3141ms, p95=4587ms, p95/p50=1.46."
 }

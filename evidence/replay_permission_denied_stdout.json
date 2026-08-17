@@ -1,5 +1,5 @@
 {
-  "run_id": "8653b384-cd19-4064-9c02-e082c82fce1f",
+  "run_id": "7a4668b9-5cbe-45b1-ab4c-cc0f4bdd70ba",
   "capability_id": "member.lookup_savings_balance",
   "status": "hard_failure",
   "failure": {
@@ -8,9 +8,9 @@
     "expected": "permitted action",
     "observed": "PERMISSION_DENIED",
     "evidence": {
-      "screenshot": "evidence\\runs\\8653b384-cd19-4064-9c02-e082c82fce1f\\step_3_permission_denied.png",
-      "aria_snapshot": "evidence\\runs\\8653b384-cd19-4064-9c02-e082c82fce1f\\step_3_permission_denied_aria.yaml",
-      "trace": "evidence\\runs\\8653b384-cd19-4064-9c02-e082c82fce1f\\step_3_permission_denied_trace.zip"
+      "screenshot": "evidence/runs/7a4668b9-5cbe-45b1-ab4c-cc0f4bdd70ba/step_3_permission_denied.png",
+      "aria_snapshot": "evidence/runs/7a4668b9-5cbe-45b1-ab4c-cc0f4bdd70ba/step_3_permission_denied_aria.yaml",
+      "trace": "evidence/runs/7a4668b9-5cbe-45b1-ab4c-cc0f4bdd70ba/step_3_permission_denied_trace.zip"
     }
   }
 }

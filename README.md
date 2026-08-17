@@ -106,7 +106,16 @@ python -m pytest tests/ -v
 
 ## Evidence
 
-See `evidence/` for discovery logs, replay logs, error cases, screenshots, and the stability report.
+Start at `evidence/INDEX.json`. Canonical runs committed under `evidence/runs/`:
+
+| Run | Folder | What it proves |
+|-----|--------|----------------|
+| Discovery | `9b4334d4-...` | LLM observe→decide→act log + Playwright trace |
+| Replay success | `fc97a898-...` | `member.lookup_savings_balance` with `member_id=10001` |
+| Business outcome | `bf4e2e19-...` | `MEMBER_NOT_FOUND` for `88888` (not an exception) |
+| Hard failure | `7a4668b9-...` | `PERMISSION_DENIED` for `90001` + screenshot |
+
+Stability eval: `evidence/stability_report.json` — 20/20, p50=3141ms, p95=4587ms, verdict `STABLE`.
 
 ## Design Write-up
 
