@@ -5,8 +5,13 @@ These are the only possible outcomes — no exceptions escape the executor.
 
 CRITICAL: IndeterminateCommit NEVER retries. Ever.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
+
+
+class ArtifactNotApprovedError(Exception):
+    """Raised when a draft artifact is invoked in unattended mode."""
+    pass
 
 
 @dataclass
@@ -18,6 +23,7 @@ class ReplaySuccess:
     steps_completed: int
     duration_ms: int
     evidence_path: str
+    patches: list[Any] = field(default_factory=list)
 
 
 @dataclass
@@ -49,6 +55,7 @@ class HardFailure:
     expected: str
     observed: str
     evidence: dict[str, str]  # {"screenshot": "path", "aria_snapshot": "path", "trace": "path"}
+    patches: list[Any] = field(default_factory=list)
 
 
 @dataclass

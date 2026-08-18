@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>interface.ai Operator Console</title>
+  <style>
+    body { margin: 0; background: #0f1117; color: #e2e8f0; font-family: monospace; }
+    header { padding: 12px 20px; background: #1a1f2e; border-bottom: 1px solid #2d3748; }
+    header h1 { margin: 0; font-size: 16px; color: #63b3ed; }
+    #status-bar { font-size: 12px; color: #a0aec0; margin-top: 4px; }
+    .main { display: flex; height: calc(100vh - 100px); }
+    #screen-panel { flex: 1; padding: 16px; }
+    #screen { width: 100%; border: 1px solid #2d3748; border-radius: 4px; background: #1a1f2e; min-height: 300px; }
+    #log-panel { width: 380px; padding: 16px; overflow-y: auto; border-left: 1px solid #2d3748; }
+    #log { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+    #log li { padding: 6px 8px; margin-bottom: 4px; border-radius: 3px; border-left: 3px solid #4a5568; }
+    #log li.success { border-left-color: #48bb78; background: #1a2e22; }
+    #log li.failed  { border-left-color: #fc8181; background: #2d1515; }
+    #log li.escalation { border-left-color: #f6ad55; background: #2d1f0a; }
+    #log li.start   { border-left-color: #63b3ed; background: #0d1a2d; }
+    .controls { padding: 12px 20px; background: #1a1f2e; border-top: 1px solid #2d3748; display: flex; gap: 12px; align-items: center; }
+    button { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+    #btn-accept  { background: #48bb78; color: #000; }
+    #btn-resume  { background: #63b3ed; color: #000; }
+    #btn-abort   { background: #fc8181; color: #000; }
+    #escalation-banner { display: none; padding: 10px 20px; background: #744210; color: #fbd38d; font-size: 13px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>interface.ai Operator Console</h1>
+  <div id="status-bar">Connecting...</div>
+</header>
+<div id="escalation-banner"></div>
+<div class="main">
+  <div id="screen-panel">
+    <img id="screen" alt="Live browser view" />
+  </div>
+  <div id="log-panel">
+    <div style="font-size:11px;color:#718096;margin-bottom:8px;">STEP LOG</div>
+    <ul id="log"></ul>
+  </div>
+</div>
+<div class="controls">
+  <button id="btn-accept"  onclick="post('/accept')">Accept</button>
+  <button id="btn-resume"  onclick="post('/resume')">Resume</button>
+  <button id="btn-abort"   onclick="post('/abort')">Abort</button>
+  <span id="ctrl-status" style="font-size:12px;color:#718096;margin-left:12px;"></span>
+</div>
+
+<script>
+  const statusBar = document.getElementById('status-bar');
+  const escalationBanner = document.getElementById('escalation-banner');
+  const log = document.getElementById('log');
+  const screen = document.getElementById('screen');
+  const ctrlStatus = document.getElementById('ctrl-status');
+
+  function connect() {
+    const ws = new WebSocket(`ws://${location.host}/ws/steps`);
+
+    ws.onopen = () => {
+      statusBar.textContent = 'CONNECTED — waiting for run...';
+      statusBar.style.color = '#48bb78';
+    };
+
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === 'screenshot' && msg.image) {
+        screen.src = 'data:image/png;base64,' + msg.image;
+      }
+
+      if (msg.type === 'step_event') {
+        statusBar.textContent = `RUNNING — Step ${msg.step} ${msg.status.toUpperCase()} @ ${msg.timestamp.slice(11,19)}`;
+        const li = document.createElement('li');
+        li.className = msg.status;
+        const icon = {start:'...', success:'OK', failed:'X', escalation:'!'}[msg.status] || '-';
+        li.textContent = `${icon} Step ${msg.step}: ${msg.action}`;
+        if (msg.locator) li.textContent += ` [${msg.locator.role || msg.locator.strategy || ''}:${msg.locator.name || msg.locator.value || ''}]`;
+        if (msg.error) li.textContent += ` — ${msg.error}`;
+        log.appendChild(li);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      if (msg.type === 'escalation') {
+        escalationBanner.style.display = 'block';
+        escalationBanner.textContent = `ESCALATION — ${msg.reason || 'Human intervention required'}`;
+        statusBar.textContent = 'ESCALATED — awaiting operator';
+        statusBar.style.color = '#f6ad55';
+      }
+
+      if (msg.type === 'run_complete') {
+        statusBar.textContent = `RUN COMPLETE — ${msg.status || ''}`;
+        statusBar.style.color = '#48bb78';
+      }
+    };
+
+    ws.onclose = () => {
+      statusBar.textContent = 'DISCONNECTED — reconnecting...';
+      statusBar.style.color = '#fc8181';
+      setTimeout(connect, 2000);
+    };
+
+    ws.onerror = () => ws.close();
+  }
+
+  function post(path) {
+    fetch(path, {method: 'POST'})
+      .then(r => r.json())
+      .then(d => { ctrlStatus.textContent = JSON.stringify(d); })
+      .catch(err => { ctrlStatus.textContent = 'Error: ' + err; });
+  }
+
+  connect();
+</script>
+</body>
+</html>

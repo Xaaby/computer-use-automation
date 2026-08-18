@@ -1,6 +1,6 @@
 # Phase Status - Update After Completing Each Phase
 
-## Current Phase: ALL PHASES COMPLETE (1–7)
+## Current Phase: ALL PHASES COMPLETE (1–7) + Enhancement Layers 1–5
 
 ## Phase Completion Checklist
 
@@ -128,3 +128,26 @@ python -m evals.stability_runner --artifact capabilities/member.lookup_savings_b
 | Phase 5 | Complete | 2026-08-17 | 10 escalation tests passed incl. FastAPI gate/resume |
 | Phase 6 | Complete | 2026-08-17 | Capability API invoke OK; stability 20/20 STABLE |
 | Phase 7 | Complete | 2026-08-17 | README + REPORT + evidence; full suite 43 passed |
+
+---
+
+## Enhancement Sprint (Layers 1–5) COMPLETE
+
+- [x] Enhancement Layer 1 — Schema extensions: COMPLETE (`ARIAFingerprint`, `ConfidenceScore`, `FallbackPatch`, `StepEvent`; `StepDefinition.fingerprint`; `Provenance.confidence/approved_by/approved_at`; `ReplayResult.patches`)
+- [x] Enhancement Layer 2 — Operator console (WebSocket + screenshot + HTML): COMPLETE (`escalation/console.html`, `/ws/steps`, `--console`, in-process `ws_manager`)
+- [x] Enhancement Layer 3 — ARIA fingerprint + drift + confidence gate: COMPLETE (`compute_fingerprint` handles Playwright YAML + `{role,name}`; `compute_confidence` 0.95/0.50; `promote_artifact` writes `provenance.status`)
+- [x] Enhancement Layer 4 — MCP server exposure: COMPLETE (`mcp>=2.0.0`, module-level `MCPServer` + `streamable_http_app`, lifespan mount at `/mcp`)
+- [x] Enhancement Layer 5 — Assisted fallback: COMPLETE (`replay/fallback.py`, one `converse()`, never irreversible/draft, `PolicyViolationError` → `policy_blocked`)
+
+**Current Phase: ALL PHASES COMPLETE (1–7) + Enhancement Layers 1–5**
+
+
+---
+
+## Enhancement Layers (Post Phase 7)
+
+- [x] Enhancement Layer 1 — Schema extensions (ARIAFingerprint, ConfidenceScore, FallbackPatch, StepEvent): COMPLETE
+- [x] Enhancement Layer 2 — Operator console (WebSocket + screenshot + console.html): COMPLETE
+- [x] Enhancement Layer 3 — ARIA fingerprint + drift + confidence gate: COMPLETE
+- [x] Enhancement Layer 4 — MCP server exposure at `/mcp`: COMPLETE
+- [x] Enhancement Layer 5 — Assisted fallback (bounded, approved-artifacts only): COMPLETE

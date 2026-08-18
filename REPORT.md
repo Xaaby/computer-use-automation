@@ -17,6 +17,8 @@ The **`Surface` ABC** (`surfaces/base.py`) separates *what* the artifact says fr
 
 FastAPI (operator console + capability invoke API) runs with **`await server.serve()` in the same asyncio loop** as the executor. That is the only way `gate.set()` in an HTTP handler reliably wakes `gate.wait()` in the executor on Windows. `uvicorn.run()` and `reload=True` are forbidden here.
 
+The operator console streams step events and browser screenshots to all connected WebSocket clients in real time via a `ConnectionManager` singleton. The screenshot loop runs as a co-task alongside the executor at ~1fps, non-blocking. Live streaming works when replay runs **in the console process**: `POST /capabilities/{name}/invoke` injects `ws_manager`, or the executor CLI `--console` flag `create_task`s the FastAPI server in the same loop. Two-process CLI+console does not share the in-memory WebSocket manager.
+
 ## 2. Artifact Schema
 
 A capability artifact is a **contract**, not a click recording. It declares typed inputs/outputs, embedded policy, business outcomes, and an error taxonomy. Replay is validation of that contract.
@@ -30,6 +32,8 @@ We keep **schema_version** (wire format of the artifact language) separate from 
 Capability IDs use dotted form (`member.lookup_savings_balance`) so they read as invocable methods: `capability.invoke("member.lookup_savings_balance", {member_id})`. That is the agent-facing contract, not a filename convention.
 
 Ephemeral ARIA refs (`e17`) are **never** stored. Discovery resolves them live; the compiler stores durable role/name/label candidates (and `frame_path` for iframes).
+
+Each `StepDefinition` carries an optional `ARIAFingerprint` — a sha256 of the page's structural ARIA snapshot (`{role: [sorted names]}`). Replay compares live ARIA (`Observation.aria_snapshot`) against the stored fingerprint before executing each step. Hash mismatch logs drift (recoverable) rather than hard_failure, because the locator chain may still succeed even if the page added new elements. Fingerprints are opt-in per step; existing artifacts are not backfilled.
 
 ## 3. Determinism & Error Handling
 
@@ -49,7 +53,9 @@ Locator ambiguity is always `AMBIGUOUS_LOCATOR` hard failure. Guessing the wrong
 
 **MEMBER_NOT_FOUND ID decision:** the mock app maps member IDs starting with `9` to HTTP 403 (`PERMISSION_DENIED`). Docs that used `99999` for not-found would mis-classify. We use **`88888`** for not-found and **`90001`** for permission denied.
 
-**Evals, not anecdotes.** Stretch B replays `member.lookup_savings_balance` 20 times unattended (`evals/stability_runner.py`). Measured result: 20/20 success, p50=3141ms, p95=4587ms. The ~1.4s spread is local Flask + Playwright startup variance. A p95/p50 ratio of 1.46 indicates low tail variance — no flaky locators, no race conditions. The `STABLE` verdict (≥90% success) is what gates the artifact for unattended replay.
+**Evals, not anecdotes.** Stretch B replays `member.lookup_savings_balance` 20 times unattended (`evals/stability_runner.py`). Measured result: 20/20 success, p50=3141ms, p95=4587ms. The ~1.4s spread is local Flask + Playwright startup variance. A p95/p50 ratio of 1.46 indicates low tail variance — no flaky locators, no race conditions. The eval `STABLE` verdict (≥90% success, FLAKY ≥70%) reports consistency; it is **not** the promotion gate.
+
+Artifacts promote from `draft` to `approved` via `evals/stability_runner.py --approve` after `compute_confidence()` returns STABLE (≥95% success over N runs; FLAKY ≥50%). That writes `provenance.status`, `provenance.confidence`, `approved_by`, and `approved_at`. The executor gates unattended replay on `provenance.status == approved` when `allow_draft=False` (`--require-approved`). Existing tests and CLI keep `allow_draft=True`.
 
 ## 4. Heterogeneity & Multi-Tenant
 
@@ -57,7 +63,7 @@ Locator ambiguity is always `AMBIGUOUS_LOCATOR` hard failure. Guessing the wrong
 
 A future `WindowsUISurface` would implement the same ABC with UI Automation. Artifacts stay logical.
 
-Multi-tenant overrides (`base capability + tenant_overrides.json`) are designed as a seam, not built. Drift detection would fingerprint ARIA structure at checkpoints — also a cut.
+Multi-tenant overrides (`base capability + tenant_overrides.json`) are designed as a seam, not built. ARIA fingerprint drift detection is implemented on `StepDefinition.fingerprint` (opt-in); it does not yet layer tenant-specific fingerprints.
 
 ## 5. Escalation & Handoff
 
@@ -69,7 +75,7 @@ Human actions are captured with **`context.add_init_script` + `expose_binding`**
 
 Post-resume, automation continues at the next step after the gate opens; irreversible steps additionally require an **approval token** from `POST /accept`.
 
-What is mocked: the operator UI is minimal HTML. A product console would stream the session (WebRTC) into a richer ops UI.
+The operator console at `:8765` serves a real-time dark-theme dashboard (`escalation/console.html`). WebSocket `/ws/steps` streams step events and 1fps screenshots. Escalation events surface as a banner with reason text. Accept/Resume/Abort buttons POST to the existing gate endpoints. Visual verify is via in-process invoke or `python -m replay.executor --console`.
 
 ## 6. Safety
 
@@ -81,8 +87,8 @@ Irreversible commits require an approval token. PII is redacted on all log write
 
 For each cut: what it is, the seam that remains, what would change, why it is the right next step.
 
-1. **Remote co-browsing operator console (WebRTC)** — Seam: EscalationController + same Page object. Change: stream viewport to a hosted console. Right next: highest ops UX payoff once the gate works.
+1. **Remote co-browsing operator console (WebRTC)** — Seam: EscalationController + same Page object + in-process WebSocket screenshot loop. **Implemented, gated:** live 1fps screenshots + step events on `:8765` via in-process invoke/`--console`. Remaining cut: stream viewport to a hosted console over WebRTC.
 2. **Desktop surface adapter** — Seam: `Surface` ABC. Change: Windows UI Automation implementation. Right next: proves heterogeneity without rewriting artifacts.
 3. **Multi-tenant at scale** — Seam: artifact name + optional override layer. Change: sparse override store and merge at load time. Right next after single-tenant stability is proven.
-4. **draft → approved gate with confidence scoring** — Seam: `provenance.status`. Change: require N successful replays + human approve. Right next for production promotion.
-5. **Assisted LLM fallback on single-step replay failure** — Seam: ReplayExecutor hard_failure path. Change: bounded one-step rediscovery then recompile candidate. Right next only after strict replay is measurably stable (otherwise it hides flaky locators).
+4. **draft → approved gate with confidence scoring** — Seam: `provenance.status`. **Implemented, gated:** `compute_confidence()` (STABLE ≥ 0.95) + `--approve` writes `provenance.status = approved`; executor `--require-approved` rejects drafts. Eval `verdict_from_rate` stays at 0.90/0.70.
+5. **Assisted LLM fallback on single-step replay failure** — Seam: ReplayExecutor hard_failure path. **Implemented, gated:** one Bedrock `converse()` call, one fallback per run, never on `irreversible_commit` or draft (`provenance.status != approved`). Policy check before `resolve_and_act`. MCP exposure at `/mcp` lets MCP-compatible agents invoke capabilities natively (`list_capabilities`, `invoke_capability` only).

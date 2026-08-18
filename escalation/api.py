@@ -11,12 +11,115 @@ CRITICAL on Windows: uvicorn Config must have reload=False.
 """
 from __future__ import annotations
 
+import asyncio
+import base64
 import json
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
+from mcp.server import MCPServer
+from mcp.types import ToolAnnotations
+
+# session_manager exists only after streamable_http_app() — call it at module
+# level after tools are registered, then enter it from the FastAPI lifespan.
+mcp_server = MCPServer("computer-use-automation")
+
+
+@mcp_server.tool(annotations=ToolAnnotations(read_only_hint=True))
+async def list_capabilities() -> list[dict]:
+    """List all saved capability artifacts available for replay."""
+    from capability.api import list_capability_summaries
+
+    return list_capability_summaries()
+
+
+@mcp_server.tool()
+async def invoke_capability(capability_name: str, inputs: dict[str, str]) -> dict:
+    """
+    Invoke a saved capability by name with typed inputs.
+    Do NOT expose resume/abort/accept — humans own the gate.
+    """
+    from capability.api import invoke_capability as invoke_cap
+
+    try:
+        return await invoke_cap(capability_name, inputs, ws_manager=ws_manager)
+    except FileNotFoundError as e:
+        return {"status": "error", "detail": str(e)}
+    except ValueError as e:
+        return {"status": "error", "detail": str(e)}
+
+
+mcp_http_app = mcp_server.streamable_http_app(streamable_http_path="/")
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.active: list[WebSocket] = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        if ws in self.active:
+            self.active.remove(ws)
+
+    async def broadcast(self, message: str):
+        dead: list[WebSocket] = []
+        for ws in self.active:
+            try:
+                await ws.send_text(message)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws)
+
+
+ws_manager = ConnectionManager()
+
+
+async def broadcast_step_event(
+    manager: ConnectionManager,
+    step_num: int,
+    status: str,
+    action: str,
+    locator: dict,
+    error: str | None = None,
+    reason: str | None = None,
+):
+    event = {
+        "type": "step_event",
+        "step": step_num,
+        "status": status,
+        "action": action,
+        "locator": locator,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "error": error,
+        "reason": reason,
+    }
+    await manager.broadcast(json.dumps(event))
+
+
+async def screenshot_loop(page, manager: ConnectionManager, done: asyncio.Event):
+    """Runs as asyncio.create_task() alongside the executor. ~1fps."""
+    while not done.is_set():
+        try:
+            img_bytes = await page.screenshot()
+            b64 = base64.b64encode(img_bytes).decode()
+            event = {
+                "type": "screenshot",
+                "image": b64,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            await manager.broadcast(json.dumps(event))
+        except Exception:
+            pass
+        await asyncio.sleep(1.0)
 
 
 def create_app(controller) -> FastAPI:
@@ -24,69 +127,27 @@ def create_app(controller) -> FastAPI:
     Create the FastAPI app. Controller is injected at creation time.
     Both this app and the executor share the same controller instance.
     """
-    app = FastAPI(title="Computer-Use Automation — Operator Console")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        async with mcp_server.session_manager.run():
+            yield
+
+    app = FastAPI(title="Computer-Use Automation — Operator Console", lifespan=lifespan)
+    app.mount("/mcp", mcp_http_app)
 
     @app.get("/", response_class=HTMLResponse)
-    async def operator_console():
-        """Minimal HTML operator interface."""
-        req = controller.current_request
-        if req is None:
-            return HTMLResponse("""
-<html><body style="font-family:monospace;background:#111;color:#ccc;padding:20px">
-<h2>✓ No Active Intervention</h2>
-<p>Automation is running normally.</p>
-<p><a href="/status" style="color:#7cf">/status</a></p>
-</body></html>""")
+    async def console_root():
+        html_path = Path(__file__).parent / "console.html"
+        return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
 
-        screenshot_img = ""
-        if req.get("screenshot_b64"):
-            screenshot_img = (
-                f'<img src="data:image/png;base64,{req["screenshot_b64"]}" '
-                'style="max-width:100%;border:1px solid #444;margin:10px 0"/>'
-            )
-
-        return HTMLResponse(f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Operator Console — Intervention Required</title>
-    <style>
-        body {{font-family: monospace; padding: 20px; background: #111; color: #e0e0e0;}}
-        .alert {{background: #3a1010; border: 2px solid #cc4444; padding: 15px; margin: 10px 0; border-radius: 4px;}}
-        .info {{background: #101830; padding: 15px; margin: 10px 0; border-radius: 4px;}}
-        pre {{background: #080808; padding: 10px; overflow-x: auto; font-size: 11px; border-radius: 4px;}}
-        button {{padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; margin: 5px;}}
-        .btn-accept {{background: #1a5c2a; color: white;}}
-        .btn-resume {{background: #1a4060; color: white;}}
-        .btn-abort {{background: #5c1a1a; color: white;}}
-        #status-msg {{margin-top: 15px; color: #aaa; font-size: 14px;}}
-    </style>
-</head>
-<body>
-    <h1>⚠ Human Intervention Required</h1>
-    <div class="alert">
-        <strong>Reason:</strong> {req.get('reason', 'Unknown')}<br>
-        <strong>Capability:</strong> {req.get('capability_id', 'Unknown')}<br>
-        <strong>Step:</strong> {req.get('current_step_seq')} ({req.get('current_step_id')})<br>
-        <strong>URL:</strong> {req.get('current_url')}
-    </div>
-    <div class="info"><strong>Goal:</strong> {req.get('goal')}</div>
-    {screenshot_img}
-    <h3>Instructions</h3>
-    <p>The browser window is under your control. Complete the required action, then click Resume.</p>
-    <button class="btn-accept" onclick="post('/accept')">Accept Control</button>
-    <button class="btn-resume" onclick="post('/resume')">Resume Automation</button>
-    <button class="btn-abort" onclick="post('/abort')">Abort Run</button>
-    <div id="status-msg"></div>
-    <script>
-        async function post(path) {{
-            const r = await fetch(path, {{method: 'POST'}});
-            const d = await r.json();
-            document.getElementById('status-msg').textContent = JSON.stringify(d);
-        }}
-    </script>
-</body>
-</html>""")
+    @app.websocket("/ws/steps")
+    async def websocket_steps(ws: WebSocket):
+        await ws_manager.connect(ws)
+        try:
+            while True:
+                await ws.receive_text()
+        except WebSocketDisconnect:
+            ws_manager.disconnect(ws)
 
     @app.get("/status")
     async def get_status():
@@ -116,38 +177,18 @@ def create_app(controller) -> FastAPI:
         controller.abort()
         return {"status": "aborted"}
 
-    # ─── Stretch A: Capability Invocation API ─────────────────────────────────
-
     @app.get("/capabilities")
     async def list_capabilities():
         """List all saved capability artifacts."""
-        cap_dir = Path("capabilities")
-        if not cap_dir.exists():
-            return []
-        caps = []
-        for f in cap_dir.glob("*.capability.json"):
-            try:
-                data = json.loads(f.read_text(encoding="utf-8"))
-                caps.append(
-                    {
-                        "id": data.get("name"),
-                        "version": data.get("version"),
-                        "description": data.get("description"),
-                        "status": data.get("provenance", {}).get("status"),
-                        "risk_class": data.get("policy", {}).get("risk_class"),
-                        "inputs": [i["name"] for i in data.get("inputs", [])],
-                        "outputs": [o["name"] for o in data.get("outputs", [])],
-                    }
-                )
-            except Exception:
-                continue
-        return caps
+        from capability.api import list_capability_summaries
+
+        return list_capability_summaries()
 
     @app.post("/capabilities/{capability_name}/invoke")
-    async def invoke_capability(capability_name: str, body: dict):
+    async def invoke_capability_route(capability_name: str, body: dict):
         """
-        Stretch A: Invoke a capability by name with typed inputs.
-        Runs deterministic replay — no LLM involved.
+        Invoke a capability by name with typed inputs.
+        Runs deterministic replay in-process with live WebSocket streaming.
         """
         from capability.schema import CapabilityArtifact
         from replay.executor import ReplayExecutor, outcome_to_dict
@@ -179,6 +220,7 @@ def create_app(controller) -> FastAPI:
             params=inputs,
             headless=True,
             escalation_controller=controller,
+            ws_manager=ws_manager,
         ).run()
 
         return outcome_to_dict(result)
@@ -201,7 +243,7 @@ async def run_operator_console(
         app,
         host=host,
         port=port,
-        reload=False,  # NEVER reload on Windows
+        reload=False,
         log_level="warning",
     )
     server = uvicorn.Server(config)

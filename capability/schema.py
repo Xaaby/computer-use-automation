@@ -65,6 +65,49 @@ class ArtifactStatus(str, Enum):
     APPROVED = "approved"
 
 
+# ─── Enhancement Models (fingerprint, confidence, fallback, events) ─────────
+
+class ARIAFingerprint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    hash: str                          # sha256 of structural dict
+    structure: dict[str, list[str]]    # {role: [sorted accessible names]}
+    captured_at: str                   # ISO timestamp
+
+
+class ConfidenceScore(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    score: float                       # 0.0–1.0
+    sample_size: int
+    p50_ms: float
+    p95_ms: float
+    verdict: Literal["STABLE", "FLAKY", "BROKEN"]
+    # STABLE >= 0.95, FLAKY >= 0.5, BROKEN < 0.5
+
+
+class FallbackPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    run_id: str
+    step_id: str
+    failed_locator: str
+    llm_suggested_action: dict
+    corrective_locator: str
+    succeeded: bool
+    captured_at: str                   # ISO timestamp
+
+
+class StepEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["step_event", "screenshot", "escalation", "run_complete"]
+    step: int | None = None
+    status: Literal["start", "success", "failed", "escalation"] | None = None
+    action: str | None = None
+    locator: dict | None = None
+    timestamp: str
+    error: str | None = None
+    reason: str | None = None          # for escalation events
+    image: str | None = None           # base64 PNG for screenshot events
+
+
 # ─── Locator Models ───────────────────────────────────────────────────────────
 
 class LocatorCandidate(BaseModel):
@@ -123,6 +166,7 @@ class StepDefinition(BaseModel):
     preconditions: list[Condition] = Field(default_factory=list)
     postconditions: list[Condition] = Field(default_factory=list)
     output_name: str | None = None         # if this step reads a value, store as this name
+    fingerprint: ARIAFingerprint | None = None
 
 
 # ─── Output Extraction ────────────────────────────────────────────────────────
@@ -220,6 +264,9 @@ class Provenance(BaseModel):
     compiler_version: str = "1.0.0"
     source_fingerprint: str | None = None
     status: ArtifactStatus = ArtifactStatus.DRAFT
+    confidence: ConfidenceScore | None = None
+    approved_by: str | None = None
+    approved_at: str | None = None
 
 
 # ─── ROOT: Capability Artifact ────────────────────────────────────────────────
@@ -273,6 +320,7 @@ class ReplayResult(BaseModel):
     steps_total: int = 0
     duration_ms: int = 0
     evidence_path: str | None = None
+    patches: list[FallbackPatch] = Field(default_factory=list)
 
 
 # ─── JSONL Log Entry ──────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -23,14 +23,22 @@ if sys.platform == "win32":
 from dotenv import load_dotenv
 
 from capability.schema import (
+    ArtifactStatus,
     CapabilityArtifact,
     ControlOwner,
+    FallbackPatch,
     RiskLevel,
 )
 from escalation.controller import EscalationController
 from policy.redactor import redact_log_entry
-from replay.conditions import ConditionEvaluator
+from replay.conditions import (
+    ConditionEvaluator,
+    compute_fingerprint,
+    diff_fingerprints,
+    fingerprint_matches,
+)
 from replay.outcomes import (
+    ArtifactNotApprovedError,
     BusinessOutcome,
     HardFailure,
     IndeterminateCommit,
@@ -52,6 +60,8 @@ class ReplayExecutor:
         evidence_base: Path | None = None,
         escalation_controller: EscalationController | None = None,
         bootstrap_session: bool = True,
+        ws_manager=None,
+        allow_draft: bool = True,
     ):
         self._artifact = artifact
         self._params = params
@@ -64,9 +74,65 @@ class ReplayExecutor:
         self._evaluator: ConditionEvaluator | None = None
         self._bootstrap_session = bootstrap_session
         self._outputs: dict[str, str] = {}
+        self._ws_manager = ws_manager
+        self._allow_draft = allow_draft
+        self._patches: list[FallbackPatch] = []
+        self._fallback_used = False
+
+    def _locator_payload(self, step) -> dict:
+        if step.target is None:
+            return {}
+        payload = step.target.model_dump(exclude_none=True)
+        candidates = payload.get("candidates") or []
+        if candidates:
+            first = candidates[0]
+            return {
+                "strategy": first.get("strategy"),
+                "role": first.get("role"),
+                "name": first.get("name"),
+                "text": first.get("text"),
+            }
+        return payload
+
+    async def _broadcast_step(
+        self, seq: int, status: str, step, error: str | None = None, reason: str | None = None
+    ):
+        if self._ws_manager is None:
+            return
+        from escalation.api import broadcast_step_event
+
+        action = step.action.value if hasattr(step.action, "value") else str(step.action)
+        await broadcast_step_event(
+            self._ws_manager,
+            seq,
+            status,
+            action,
+            self._locator_payload(step),
+            error=error,
+            reason=reason,
+        )
+
+    async def _broadcast_run_complete(self, status: str):
+        if self._ws_manager is None:
+            return
+        event = {
+            "type": "run_complete",
+            "status": status,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        await self._ws_manager.broadcast(json.dumps(event))
 
     async def run(self) -> ReplayOutcome:
         """Execute the capability deterministically."""
+        if (
+            self._artifact.provenance.status == ArtifactStatus.DRAFT
+            and not self._allow_draft
+        ):
+            raise ArtifactNotApprovedError(
+                f"Artifact '{self._artifact.name}' is DRAFT. "
+                f"Run stability_runner with --approve first, or pass allow_draft=True."
+            )
+
         start = time.time()
         evidence_dir = self._evidence_base / self._run_id
         evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -79,6 +145,15 @@ class ReplayExecutor:
         self._surface = surface
         self._evaluator = ConditionEvaluator(surface)
 
+        screenshot_done = asyncio.Event()
+        screenshot_task = None
+        if self._ws_manager is not None:
+            from escalation.api import screenshot_loop
+
+            screenshot_task = asyncio.create_task(
+                screenshot_loop(surface._page, self._ws_manager, screenshot_done)
+            )
+
         await surface.start_tracing()
         if self._bootstrap_session:
             await self._re_authenticate()
@@ -86,10 +161,9 @@ class ReplayExecutor:
         try:
             steps = self._artifact.steps
             for seq, step in enumerate(steps, start=1):
-                # 1. Pause if escalation gate is cleared
                 await self._escalation.gate.wait()
                 if self._escalation.abort_requested:
-                    return await self._hard_failure(
+                    outcome = await self._hard_failure(
                         code="ABORTED",
                         step=step,
                         seq=seq,
@@ -97,15 +171,18 @@ class ReplayExecutor:
                         observed="operator aborted",
                         evidence_dir=evidence_dir,
                     )
+                    await self._broadcast_step(seq, "failed", step, error="ABORTED")
+                    await self._broadcast_run_complete("hard_failure")
+                    return outcome
 
-                # 2. Param substitution
+                await self._broadcast_step(seq, "start", step)
+
                 value = self._substitute(step.value) if step.value else None
 
-                # 3. Preconditions
                 for pre in step.preconditions:
                     cond = pre.model_dump(exclude_none=True)
                     if not await self._evaluator.evaluate(cond):
-                        return await self._hard_failure(
+                        outcome = await self._hard_failure(
                             code="PRECONDITION_FAILED",
                             step=step,
                             seq=seq,
@@ -113,20 +190,19 @@ class ReplayExecutor:
                             observed=f"url={surface._page.url}",
                             evidence_dir=evidence_dir,
                         )
+                        await self._broadcast_step(seq, "failed", step, error="PRECONDITION_FAILED")
+                        await self._broadcast_run_complete("hard_failure")
+                        return outcome
 
-                # 4. Business outcomes BEFORE step
                 bo = await self._check_business_outcomes(step.id, seq, evidence_dir)
                 if bo is not None:
                     self._write_log(log_path, seq, step, "business_outcome", bo.code)
+                    await self._broadcast_step(seq, "success", step)
+                    await self._broadcast_run_complete("business_outcome")
                     return bo
 
-                # 6. Irreversible requires approval token
                 if step.risk_level == RiskLevel.IRREVERSIBLE_COMMIT:
                     if not self._escalation.has_approval():
-                        # Non-blocking pause signal for irreversible — operator
-                        # must POST /accept then /resume. Decision: clear gate and
-                        # wait rather than calling pause_for_human (which also waits)
-                        # so we can set approval via accept().
                         self._escalation._owner = ControlOwner.HUMAN
                         self._escalation.gate.clear()
                         self._escalation._current_request = {
@@ -135,9 +211,12 @@ class ReplayExecutor:
                             "current_step_id": step.id,
                             "status": "pending",
                         }
+                        await self._broadcast_step(
+                            seq, "escalation", step, reason="irreversible_commit"
+                        )
                         await self._escalation.gate.wait()
                         if self._escalation.abort_requested:
-                            return await self._hard_failure(
+                            outcome = await self._hard_failure(
                                 code="ABORTED",
                                 step=step,
                                 seq=seq,
@@ -145,8 +224,10 @@ class ReplayExecutor:
                                 observed="operator aborted",
                                 evidence_dir=evidence_dir,
                             )
+                            await self._broadcast_run_complete("hard_failure")
+                            return outcome
                         if not self._escalation.has_approval():
-                            return await self._hard_failure(
+                            outcome = await self._hard_failure(
                                 code="APPROVAL_REQUIRED",
                                 step=step,
                                 seq=seq,
@@ -154,35 +235,100 @@ class ReplayExecutor:
                                 observed="missing",
                                 evidence_dir=evidence_dir,
                             )
+                            await self._broadcast_run_complete("hard_failure")
+                            return outcome
 
-                # 7. Execute (with recoverable retry budget)
+                if step.fingerprint and self._surface:
+                    obs = await self._surface.observe()
+                    live_fp = compute_fingerprint(obs.aria_snapshot)
+                    if not fingerprint_matches(step.fingerprint, live_fp):
+                        diff = diff_fingerprints(step.fingerprint, live_fp)
+                        drift_event = {
+                            "type": "drift_detected",
+                            "step_id": step.id,
+                            "expected_hash": step.fingerprint.hash,
+                            "actual_hash": live_fp.hash,
+                            "diff": diff,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+                        self._write_drift_log(log_path, drift_event)
+                        if self._ws_manager:
+                            await self._ws_manager.broadcast(
+                                json.dumps(
+                                    {
+                                        "type": "step_event",
+                                        "step": seq,
+                                        "status": "failed",
+                                        "action": "fingerprint_check",
+                                        "locator": {},
+                                        "timestamp": drift_event["timestamp"],
+                                        "error": f"DRIFT: {diff}",
+                                    }
+                                )
+                            )
+
                 result = await self._execute_step_with_retries(
                     step, value, seq, evidence_dir, log_path
                 )
-                if isinstance(
-                    result,
-                    (
-                        HardFailure,
-                        RecoverableExhausted,
-                        IndeterminateCommit,
-                        BusinessOutcome,
-                    ),
-                ):
+                if isinstance(result, HardFailure):
+                    eligible = (
+                        not self._fallback_used
+                        and self._artifact.provenance.status == ArtifactStatus.APPROVED
+                        and step.risk_level != RiskLevel.IRREVERSIBLE_COMMIT
+                    )
+                    if eligible:
+                        from replay.fallback import attempt_fallback
+
+                        try:
+                            obs = await self._surface.observe()
+                            live_aria = obs.aria_snapshot[:2000]
+                            patch = await attempt_fallback(
+                                step=step,
+                                error_detail=result.observed,
+                                live_aria=live_aria,
+                                surface=self._surface,
+                                policy=self._surface._policy,
+                                artifact_status=self._artifact.provenance.status,
+                                run_id=self._run_id,
+                                evidence_dir=evidence_dir,
+                                fallback_used=self._fallback_used,
+                            )
+                        except Exception:
+                            patch = None
+                        if patch is not None:
+                            self._patches.append(patch)
+                            self._fallback_used = True
+                            if patch.succeeded:
+                                await self._broadcast_step(seq, "success", step)
+                                continue
+                    await self._broadcast_step(seq, "failed", step, error=result.code)
+                    await self._broadcast_run_complete("hard_failure")
+                    return self._attach_patches(result)
+
+                if isinstance(result, IndeterminateCommit):
+                    await self._broadcast_step(
+                        seq, "escalation", step, reason="IndeterminateCommit"
+                    )
+                    await self._broadcast_run_complete("indeterminate_commit")
                     return result
 
-                # 13. Business outcomes AFTER step
+                if isinstance(result, (RecoverableExhausted, BusinessOutcome)):
+                    await self._broadcast_step(seq, "failed", step, error=type(result).__name__)
+                    await self._broadcast_run_complete(type(result).__name__)
+                    return result
+
+                await self._broadcast_step(seq, "success", step)
+
                 bo = await self._check_business_outcomes(step.id, seq, evidence_dir)
                 if bo is not None:
                     self._write_log(log_path, seq, step, "business_outcome", bo.code)
+                    await self._broadcast_run_complete("business_outcome")
                     return bo
 
-                # Capture read outputs from step
                 if step.action.value == "read" and step.output_name:
-                    # Last resolve stored extracted value via side channel
                     if hasattr(self, "_last_extracted") and self._last_extracted is not None:
                         self._outputs[step.output_name] = self._last_extracted
 
-            # 14–16. Success path: checkpoint + extract outputs
             success_cp = self._artifact.success_condition.get("checkpoint_id")
             if success_cp and success_cp in self._artifact.checkpoints:
                 cp = self._artifact.checkpoints[success_cp]
@@ -190,7 +336,7 @@ class ReplayExecutor:
                     cp.model_dump(exclude_none=True)
                 )
                 if not ok:
-                    return await self._hard_failure(
+                    outcome = await self._hard_failure(
                         code="SUCCESS_CHECKPOINT_FAILED",
                         step=steps[-1] if steps else None,
                         seq=len(steps),
@@ -198,6 +344,8 @@ class ReplayExecutor:
                         observed=f"url={surface._page.url}",
                         evidence_dir=evidence_dir,
                     )
+                    await self._broadcast_run_complete("hard_failure")
+                    return outcome
 
             await self._extract_declared_outputs()
 
@@ -209,16 +357,26 @@ class ReplayExecutor:
                 "success",
                 None,
             )
-            return ReplaySuccess(
+            success = ReplaySuccess(
                 run_id=self._run_id,
                 capability_id=self._artifact.name,
                 outputs=dict(self._outputs),
                 steps_completed=len(steps),
                 duration_ms=duration_ms,
                 evidence_path=str(evidence_dir),
+                patches=list(self._patches),
             )
+            await self._broadcast_run_complete("success")
+            return success
 
         finally:
+            screenshot_done.set()
+            if screenshot_task is not None:
+                screenshot_task.cancel()
+                try:
+                    await screenshot_task
+                except asyncio.CancelledError:
+                    pass
             try:
                 await surface.stop_tracing(str(evidence_dir / "replay_trace.zip"))
             except Exception:
@@ -226,6 +384,16 @@ class ReplayExecutor:
             await context.close()
             await browser.close()
             await pw_cm.__aexit__(None, None, None)
+
+    def _attach_patches(self, outcome: ReplayOutcome) -> ReplayOutcome:
+        if isinstance(outcome, HardFailure):
+            outcome.patches = list(self._patches)
+        return outcome
+
+    def _write_drift_log(self, log_path: Path, event: dict) -> None:
+        redacted = redact_log_entry(event)
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(redacted) + "\n")
 
     async def _execute_step_with_retries(
         self, step, value, seq, evidence_dir: Path, log_path: Path
@@ -549,6 +717,7 @@ class ReplayExecutor:
             expected=expected,
             observed=observed,
             evidence=evidence,
+            patches=list(self._patches),
         )
 
     def _write_log(
@@ -582,8 +751,9 @@ class ReplayExecutor:
             f.write(json.dumps(redacted) + "\n")
 
 
-def outcome_to_dict(result: ReplayOutcome) -> dict:
+def outcome_to_dict(result: ReplayOutcome, patches: list | None = None) -> dict:
     """Serialize a typed outcome for CLI / API responses."""
+    patch_data = patches or getattr(result, "patches", None) or []
     base = {"run_id": result.run_id, "capability_id": result.capability_id}
     if isinstance(result, ReplaySuccess):
         return {
@@ -593,6 +763,7 @@ def outcome_to_dict(result: ReplayOutcome) -> dict:
             "steps_completed": result.steps_completed,
             "duration_ms": result.duration_ms,
             "evidence_path": result.evidence_path,
+            "patches": [p.model_dump() if hasattr(p, "model_dump") else p for p in (result.patches or patch_data)],
         }
     if isinstance(result, BusinessOutcome):
         return {
@@ -616,6 +787,7 @@ def outcome_to_dict(result: ReplayOutcome) -> dict:
                 "observed": result.observed,
                 "evidence": result.evidence,
             },
+            "patches": [p.model_dump() if hasattr(p, "model_dump") else p for p in patch_data],
         }
     if isinstance(result, RecoverableExhausted):
         return {
@@ -643,17 +815,53 @@ if __name__ == "__main__":
     parser.add_argument("--artifact", required=True, help="Path to .capability.json")
     parser.add_argument("--params", default="{}", help="JSON string of input params")
     parser.add_argument("--headless", action="store_true", default=False)
+    parser.add_argument(
+        "--require-approved",
+        action="store_true",
+        help="Reject draft artifacts (sets allow_draft=False)",
+    )
+    parser.add_argument(
+        "--console",
+        action="store_true",
+        help="Start operator console in-process for live WebSocket streaming",
+    )
     args = parser.parse_args()
 
     with open(args.artifact, encoding="utf-8") as f:
         artifact = CapabilityArtifact.model_validate(json.load(f))
 
-    result = asyncio.run(
-        ReplayExecutor(
+    async def _main():
+        from escalation.api import run_operator_console, ws_manager
+        from escalation.controller import EscalationController
+
+        controller = EscalationController(evidence_dir=Path("evidence") / "runs")
+        console_task = None
+        if args.console:
+            import os
+
+            port = int(os.environ.get("OPERATOR_CONSOLE_PORT", "8765"))
+            console_task = asyncio.create_task(
+                run_operator_console(controller, host="127.0.0.1", port=port)
+            )
+            await asyncio.sleep(0.5)
+
+        result = await ReplayExecutor(
             artifact=artifact,
             params=json.loads(args.params),
             headless=args.headless,
+            escalation_controller=controller if args.console else None,
+            ws_manager=ws_manager if args.console else None,
+            allow_draft=not args.require_approved,
         ).run()
-    )
 
+        if console_task is not None:
+            console_task.cancel()
+            try:
+                await console_task
+            except asyncio.CancelledError:
+                pass
+
+        return result
+
+    result = asyncio.run(_main())
     print(json.dumps(outcome_to_dict(result), indent=2, default=str))

@@ -43,6 +43,9 @@ async def invoke_capability(
     capability_name: str,
     inputs: dict[str, str],
     headless: bool = True,
+    ws_manager=None,
+    escalation_controller=None,
+    allow_draft: bool = True,
 ) -> dict:
     cap_file = Path("capabilities") / f"{capability_name}.capability.json"
     if not cap_file.exists():
@@ -54,6 +57,11 @@ async def invoke_capability(
         if inp.required and inp.name not in inputs:
             raise ValueError(f"Required input '{inp.name}' missing")
     result = await ReplayExecutor(
-        artifact=artifact, params=inputs, headless=headless
+        artifact=artifact,
+        params=inputs,
+        headless=headless,
+        ws_manager=ws_manager,
+        escalation_controller=escalation_controller,
+        allow_draft=allow_draft,
     ).run()
     return outcome_to_dict(result)

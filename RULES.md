@@ -23,6 +23,7 @@ Local path: C:\Users\AbhishekkumarYadav\Documents\computer-use-automation\
 14. NEVER store element refs (e.g. `e17`) in capability artifacts — refs are ephemeral, only valid for the current snapshot session
 15. ALWAYS call `locator.normalize()` after resolving an ephemeral ref to get a durable locator
 16. FastAPI MUST run via `asyncio.create_task(server.serve())` — NEVER via `uvicorn.run()` inside an async context
+17. ALWAYS hash fingerprints with hashlib.sha256 — never md5
 
 ## AWS Bedrock Configuration
 ```python

@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0",
-  "id": "1f3ecca0-44d0-43ce-be46-8caa6f765858",
+  "id": "c717c375-c75e-4400-9840-337a8d489145",
   "name": "member.lookup_savings_balance",
   "version": "1.0.0",
-  "description": "Look up member 10001 and find their savings balance",
-  "created_at": "2026-08-17T05:05:11.502692Z",
+  "description": "Look up member 10001 and read their savings balance",
+  "created_at": "2026-08-17T15:04:41.479600Z",
   "target": {
     "surface_type": "playwright_web",
     "app_family": "mock_core_admin",
@@ -14,15 +14,14 @@
   "policy": {
     "risk_class": "read_only",
     "allowed_actions": [
-      "click",
-      "fill",
       "read",
-      "navigate"
+      "click",
+      "fill"
     ],
     "allowed_routes": [
+      "http://localhost:5000/members/search",
       "http://localhost:5000/frames/**",
-      "http://localhost:5000/members/**",
-      "http://localhost:5000/members/search"
+      "http://localhost:5000/members/**"
     ]
   },
   "inputs": [
@@ -145,7 +144,7 @@
       "preconditions": [
         {
           "type": "route_matches",
-          "pattern": "*/members/*"
+          "pattern": "*/members/10001*"
         }
       ],
       "postconditions": [],
@@ -168,7 +167,7 @@
   ],
   "success_condition": {
     "checkpoint_id": "at_members_detail",
-    "description": "Look up member 10001 and find their savings balance"
+    "description": "Look up member 10001 and read their savings balance"
   },
   "checkpoints": {
     "at_members_search": {
@@ -287,9 +286,18 @@
     ]
   },
   "provenance": {
-    "discovery_run_id": "9b4334d4-b921-4824-9044-8ea863e099fe",
+    "discovery_run_id": "4d9855b3-7e11-4a61-84ad-db954d89fe74",
     "discovery_model": "claude-sonnet-4-6-bedrock",
     "compiler_version": "1.0.0",
-    "status": "draft"
+    "status": "approved",
+    "confidence": {
+      "score": 1.0,
+      "sample_size": 20,
+      "p50_ms": 3843.0,
+      "p95_ms": 4324.0,
+      "verdict": "STABLE"
+    },
+    "approved_by": "stability_runner",
+    "approved_at": "2026-08-18T01:13:38.682305+00:00"
   }
 }
