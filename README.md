@@ -12,15 +12,17 @@ in production with no model in the decision loop.
 
 ## Architecture overview
 
-Discovery (LLM) Artifact Replay (no LLM)
-───────────────── → ─────────────── → ─────────────────────
-observe → decide typed, versioned deterministic steps
-→ act loop JSON capability stable locators
-against live UI with schema error taxonomy
-contract structured result
-↓
-Operator Console
-(escalation + live feed)
+```
+Discovery (LLM)          Artifact              Replay (no LLM)
+─────────────────   →   ───────────────   →   ─────────────────────
+observe → decide        typed, versioned       deterministic steps
+→ act loop              JSON capability        stable locators
+against live UI         with schema            error taxonomy
+                        contract               structured result
+                              ↓
+                        Operator Console
+                        (escalation + live feed)
+```
 
 
 **Stack:** Python 3.11 · Playwright async · AWS Bedrock (Claude Sonnet via boto3) ·
